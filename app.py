@@ -5,12 +5,11 @@ from PIL import Image
 import io
 import os
 from sklearn.preprocessing import LabelEncoder
-import pickle
 
 app = Flask(__name__)
 
 #Load the trained model
-model = tf.keras.models.load_model('breedModel.keras')
+model = tf.keras.models.load_model('breedModel.h5')
 
 #Load label classes
 label_encoder = LabelEncoder()
@@ -44,6 +43,9 @@ def predict():
         return jsonify({'error': 'No file uploaded'}), 400
     
     file = request.files['file']
+    if not file.content_type.startswith('image/'):
+        return jsonify({'error': 'File must be an image'}), 400
+    
     image_bytes = file.read()
     processed_image = preprocess_image(image_bytes)
 
@@ -55,7 +57,7 @@ def predict():
     return jsonify({'breed': predicted_label,
                     'confidence': round(confidence, 3)})
 
-@app.rout('/', methods=['GET'])
+@app.route('/', methods=['GET'])
 def home():
     return "DogBreed Prediction API is running."
 
