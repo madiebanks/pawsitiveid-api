@@ -5,8 +5,10 @@ from PIL import Image
 import io
 import os
 from sklearn.preprocessing import LabelEncoder
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 #Load the trained model
 model = tf.keras.models.load_model('breedModel.h5')
