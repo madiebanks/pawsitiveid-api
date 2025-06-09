@@ -10,7 +10,7 @@ import pickle
 app = Flask(__name__)
 
 #Load the trained model
-model = tf.keras.models.load_model('breedModel.h5')
+model = tf.keras.models.load_model('breedModel.keras')
 
 #Load label classes
 label_encoder = LabelEncoder()
