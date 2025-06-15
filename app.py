@@ -11,7 +11,7 @@ app = Flask(__name__)
 CORS(app)
 
 #Load the trained model
-model = tf.keras.models.load_model('breedModel.h5')
+model = tf.keras.models.load_model('20250615_171214_full_image_set_mobilenetv2_Adam.h5')
 
 #Load label classes
 label_encoder = LabelEncoder()
