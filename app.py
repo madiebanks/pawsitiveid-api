@@ -34,7 +34,7 @@ class HubLayerWrapper(tf.keras.layers.Layer):
 
 # Load the trained .keras model with the wrapper
 model = tf.keras.models.load_model(
-    'breedModel.keras',
+    'breedModel2.keras',
     custom_objects={"HubLayerWrapper": HubLayerWrapper}
 )
 
