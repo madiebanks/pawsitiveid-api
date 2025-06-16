@@ -1,6 +1,7 @@
 flask
+flask-cors
 tensorflow
+tensorflow-hub
 pillow
 numpy
 scikit-learn
-flask-cors

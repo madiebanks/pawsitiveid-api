@@ -1,53 +1,86 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import tensorflow as tf
+import tensorflow_hub as hub
+from keras.saving import register_keras_serializable
 import numpy as np
 from PIL import Image
 import io
 import os
 from sklearn.preprocessing import LabelEncoder
-from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-#Load the trained model
-model = tf.keras.models.load_model('breedModel.h5')
+# Register the custom wrapper to handle TF Hub layers
+@register_keras_serializable()
+class HubLayerWrapper(tf.keras.layers.Layer):
+    def __init__(self, hub_url, trainable=False, **kwargs):
+        super().__init__(**kwargs)
+        self.hub_url = hub_url
+        self.trainable = trainable
+        self.hub_layer = hub.KerasLayer(self.hub_url, trainable=self.trainable)
 
-#Load label classes
+    def call(self, inputs):
+        return self.hub_layer(inputs)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "hub_url": self.hub_url,
+            "trainable": self.trainable
+        })
+        return config
+
+# Load the trained .keras model with the wrapper
+model = tf.keras.models.load_model(
+    'breedModel.keras',
+    custom_objects={"HubLayerWrapper": HubLayerWrapper}
+)
+
+# Load breed label classes
 label_encoder = LabelEncoder()
-#Actual breed label list
-breed_classes = ["Afghan Hound", "African Wild Dog", "Airedale Terrier", "American Staffordshire Terrier", "Appenzeller Sennenhund", "Australian Terrier", "Bedlington Terrier", 
-                 "Bernese Mountain Dog", "Blenheim Cavalier King Charles Spaniel", "Border Collie", "Border Terrier", "Boston Terrier", "Bouvier Des Flandres", "Brussels Griffon", 
-                 "Brittany", "Cardigan Welsh Corgi", "Chesapeake Bay Retriever", "Chihuahua", "Dandie Dinmont Terrier", "Doberman Pinscher", "English Setter", "English Springer Spaniel", 
-                 "Entlebucher Mountain Dog", "American Eskimo Dog", "German Shepherd", "German Shorthaired Pointer", "Gordon Setter", "Great Dane", "Great Pyrenees", 
-                 "Greater Swiss Mountain Dog", "Ibizan Hound", "Irish Setter", "Irish Terrier", "Irish Water Spaniel", "Irish Wolfhound", "Italian Greyhound", "Japanese Chin", 
-                 "Kerry Blue Terrier", "Labrador Retriever", "Lakeland Terrier", "Leonberger", "Lhasa Apso", "Maltese", "Xoloitzcuintli", "Newfoundland", 
-                 "Norfolk Terrier", "Norwegian Elkhound", "Norwich Terrier", "Old English Sheepdog", "Pekingese", "Pembroke Welsh Corgi", "Pomeranian", "Rhodesian Ridgeback", 
-                 "Rottweiler", "Saint Bernard", "Saluki", "Samoyed", "Scottish Terrier", "Scottish Deerhound", "Sealyham Terrier", "Shih Tzu", "Siberian Husky", 
-                 "Staffordshire Bull Terrier", "Sussex Spanel", "Tibetan Terrier", "Treeing Walker Coonhound", "Weimaraner", "Welsh Springer Spaniel", "West Highland White Terrier", 
-                 "Yorkshire Terrier", "Affenpinscher", "Basenji", "Basset Hound", "Beagle", "Black and Tan Coonhound", "Bloodhound", "Bluetick Coonhound", "Borzoi", "Boxer", "Briard", 
-                 "Bullmastiff", "Cairn Terrier", "Chow Chow", "Clumber Spaniel", "Cocker Spaniel", "Collie", "Curly-Coated Retriever", "Dhole", "Carolina Dog", "Flat-Coated Retriever", 
-                 "Giant Schnauzer", "Golden Retriever", "Belgian Sheepdog", "Keeshond", "Australian Kelpie", "Komondor", "Kuvasz", "Alaskan Malamute", "Belgian Malinois", "Miniature Pinshcer", 
-                 "Poodle (Miniature)", "Miniature Schnauzer", "Papillon", "Pug", "Redbone Coonhound", "Schipperke", "Silky Terrier", "Soft Coated Wheaten Terrier", 
-                 "Poodle (Standard)", "Standard Schnauzer", "Poodle (Toy)", "Toy Fox Terrier", "Vizsla", "Whippet", "Wire Fox Terrier"]
+breed_classes = [
+    "Afghan Hound", "African Wild Dog", "Airedale Terrier", "American Staffordshire Terrier", "Appenzeller Sennenhund",
+    "Australian Terrier", "Bedlington Terrier", "Bernese Mountain Dog", "Blenheim Cavalier King Charles Spaniel",
+    "Border Collie", "Border Terrier", "Boston Terrier", "Bouvier Des Flandres", "Brussels Griffon", "Brittany",
+    "Cardigan Welsh Corgi", "Chesapeake Bay Retriever", "Chihuahua", "Dandie Dinmont Terrier", "Doberman Pinscher",
+    "English Setter", "English Springer Spaniel", "Entlebucher Mountain Dog", "American Eskimo Dog", "German Shepherd",
+    "German Shorthaired Pointer", "Gordon Setter", "Great Dane", "Great Pyrenees", "Greater Swiss Mountain Dog",
+    "Ibizan Hound", "Irish Setter", "Irish Terrier", "Irish Water Spaniel", "Irish Wolfhound", "Italian Greyhound",
+    "Japanese Chin", "Kerry Blue Terrier", "Labrador Retriever", "Lakeland Terrier", "Leonberger", "Lhasa Apso",
+    "Maltese", "Xoloitzcuintli", "Newfoundland", "Norfolk Terrier", "Norwegian Elkhound", "Norwich Terrier",
+    "Old English Sheepdog", "Pekingese", "Pembroke Welsh Corgi", "Pomeranian", "Rhodesian Ridgeback", "Rottweiler",
+    "Saint Bernard", "Saluki", "Samoyed", "Scottish Terrier", "Scottish Deerhound", "Sealyham Terrier", "Shih Tzu",
+    "Siberian Husky", "Staffordshire Bull Terrier", "Sussex Spanel", "Tibetan Terrier", "Treeing Walker Coonhound",
+    "Weimaraner", "Welsh Springer Spaniel", "West Highland White Terrier", "Yorkshire Terrier", "Affenpinscher",
+    "Basenji", "Basset Hound", "Beagle", "Black and Tan Coonhound", "Bloodhound", "Bluetick Coonhound", "Borzoi",
+    "Boxer", "Briard", "Bullmastiff", "Cairn Terrier", "Chow Chow", "Clumber Spaniel", "Cocker Spaniel", "Collie",
+    "Curly-Coated Retriever", "Dhole", "Carolina Dog", "Flat-Coated Retriever", "Giant Schnauzer", "Golden Retriever",
+    "Belgian Sheepdog", "Keeshond", "Australian Kelpie", "Komondor", "Kuvasz", "Alaskan Malamute", "Belgian Malinois",
+    "Miniature Pinshcer", "Poodle (Miniature)", "Miniature Schnauzer", "Papillon", "Pug", "Redbone Coonhound",
+    "Schipperke", "Silky Terrier", "Soft Coated Wheaten Terrier", "Poodle (Standard)", "Standard Schnauzer",
+    "Poodle (Toy)", "Toy Fox Terrier", "Vizsla", "Whippet", "Wire Fox Terrier"
+]
 label_encoder.fit(breed_classes)
 
-#Image preprocessing function
+# Image preprocessing
 def preprocess_image(image_bytes):
     image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    image = image.resize((160, 160))
+    image = image.resize((224, 224))  # Match input size for MobileNetV2
     image = np.array(image) / 255.0
     return np.expand_dims(image, axis=0)
 
+# API route to make predictions
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
-    
+
     file = request.files['file']
     if not file.content_type.startswith('image/'):
         return jsonify({'error': 'File must be an image'}), 400
-    
+
     image_bytes = file.read()
     processed_image = preprocess_image(image_bytes)
 
@@ -56,13 +89,17 @@ def predict():
     predicted_label = label_encoder.inverse_transform([predicted_index])[0]
     confidence = float(np.max(prediction))
 
-    return jsonify({'breed': predicted_label,
-                    'confidence': round(confidence, 3)})
+    return jsonify({
+        'breed': predicted_label,
+        'confidence': round(confidence, 3)
+    })
 
+# Health check
 @app.route('/', methods=['GET'])
 def home():
     return "DogBreed Prediction API is running."
 
+# Run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
