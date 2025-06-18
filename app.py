@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 import io
 import os
-from sklearn.preprocessing import LabelEncoder
+import sys
 
 app = Flask(__name__)
 CORS(app)
@@ -32,37 +32,18 @@ class HubLayerWrapper(tf.keras.layers.Layer):
         })
         return config
 
-# Load the trained .keras model with the wrapper
+# Load the trained .keras model
 model = tf.keras.models.load_model(
     'breedModel2.keras',
     custom_objects={"HubLayerWrapper": HubLayerWrapper}
 )
 
-# Load breed label classes
-label_encoder = LabelEncoder()
-breed_classes = [
-    "Afghan Hound", "African Wild Dog", "Airedale Terrier", "American Staffordshire Terrier", "Appenzeller Sennenhund",
-    "Australian Terrier", "Bedlington Terrier", "Bernese Mountain Dog", "Blenheim Cavalier King Charles Spaniel",
-    "Border Collie", "Border Terrier", "Boston Terrier", "Bouvier Des Flandres", "Brussels Griffon", "Brittany",
-    "Cardigan Welsh Corgi", "Chesapeake Bay Retriever", "Chihuahua", "Dandie Dinmont Terrier", "Doberman Pinscher",
-    "English Setter", "English Springer Spaniel", "Entlebucher Mountain Dog", "American Eskimo Dog", "German Shepherd",
-    "German Shorthaired Pointer", "Gordon Setter", "Great Dane", "Great Pyrenees", "Greater Swiss Mountain Dog",
-    "Ibizan Hound", "Irish Setter", "Irish Terrier", "Irish Water Spaniel", "Irish Wolfhound", "Italian Greyhound",
-    "Japanese Chin", "Kerry Blue Terrier", "Labrador Retriever", "Lakeland Terrier", "Leonberger", "Lhasa Apso",
-    "Maltese", "Xoloitzcuintli", "Newfoundland", "Norfolk Terrier", "Norwegian Elkhound", "Norwich Terrier",
-    "Old English Sheepdog", "Pekingese", "Pembroke Welsh Corgi", "Pomeranian", "Rhodesian Ridgeback", "Rottweiler",
-    "Saint Bernard", "Saluki", "Samoyed", "Scottish Terrier", "Scottish Deerhound", "Sealyham Terrier", "Shih Tzu",
-    "Siberian Husky", "Staffordshire Bull Terrier", "Sussex Spanel", "Tibetan Terrier", "Treeing Walker Coonhound",
-    "Weimaraner", "Welsh Springer Spaniel", "West Highland White Terrier", "Yorkshire Terrier", "Affenpinscher",
-    "Basenji", "Basset Hound", "Beagle", "Black and Tan Coonhound", "Bloodhound", "Bluetick Coonhound", "Borzoi",
-    "Boxer", "Briard", "Bullmastiff", "Cairn Terrier", "Chow Chow", "Clumber Spaniel", "Cocker Spaniel", "Collie",
-    "Curly-Coated Retriever", "Dhole", "Carolina Dog", "Flat-Coated Retriever", "Giant Schnauzer", "Golden Retriever",
-    "Belgian Sheepdog", "Keeshond", "Australian Kelpie", "Komondor", "Kuvasz", "Alaskan Malamute", "Belgian Malinois",
-    "Miniature Pinshcer", "Poodle (Miniature)", "Miniature Schnauzer", "Papillon", "Pug", "Redbone Coonhound",
-    "Schipperke", "Silky Terrier", "Soft Coated Wheaten Terrier", "Poodle (Standard)", "Standard Schnauzer",
-    "Poodle (Toy)", "Toy Fox Terrier", "Vizsla", "Whippet", "Wire Fox Terrier"
-]
-label_encoder.fit(breed_classes)
+# ✅ Load breed label classes saved from training
+try:
+    breed_classes = np.load("breed_labels.npy")
+except FileNotFoundError:
+    print("Error: 'breed_labels.npy' not found. Please make sure it exists in the project directory.")
+    sys.exit(1)
 
 # Image preprocessing
 def preprocess_image(image_bytes):
@@ -86,7 +67,7 @@ def predict():
 
     prediction = model.predict(processed_image)
     predicted_index = np.argmax(prediction, axis=1)[0]
-    predicted_label = label_encoder.inverse_transform([predicted_index])[0]
+    predicted_label = breed_classes[predicted_index]
     confidence = float(np.max(prediction))
 
     return jsonify({
