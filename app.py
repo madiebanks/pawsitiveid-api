@@ -40,7 +40,7 @@ model = tf.keras.models.load_model(
 
 # ✅ Load breed label classes saved from training
 try:
-    breed_classes = np.load("breed_labels.npy")
+    breed_classes = np.load("breed_labels.npy", allow_pickle=True)
 except FileNotFoundError:
     print("Error: 'breed_labels.npy' not found. Please make sure it exists in the project directory.")
     sys.exit(1)
